@@ -5,7 +5,12 @@ import facetree from './facetree'
 import './App.css';
 import Chart from './Chart'
 import Login from './Login'
-import { Button, CircularProgress, Grid, Typography } from '@material-ui/core'
+import { Button, CircularProgress, Grid, Typography } from '@mui/material'
+import { ThemeProvider, StyledEngineProvider, createTheme } from '@mui/material/styles';
+
+import makeStyles from '@mui/styles/makeStyles';
+
+const theme = createTheme();
 
 const facetree_backend = 'https://facetree-dev.ardoe.net';
 
@@ -121,48 +126,49 @@ class App extends Component {
   }
   render() {
     const { treeData, treeMode, animate, loading, auth, rotation, scale, x, y } = this.state
-    console.log(this.state)
     return (
-      <div id="root">
-        {!auth && (
-          <Login onSubmit={this.login} />
-        )}
-        {loading && <CircularProgress />}
-        {auth && treeData && (
-          <Grid container>
-            <Grid item xs={3} style={{backgroundColor: "#eaeaea"}}>
-              <Typography variant="h3" gutterBottom>Facetree</Typography>
-              <div>
-                <Typography>
-                  Utseende
-                </Typography>
-                <Button onClick={() => this.setState({treeMode: 'Edged'})}>Edged</Button>
-                <Button onClick={() => this.setState({treeMode: 'Smooth'})}>Smooth</Button>
-              </div>
-              <div>
-                <Typography>
-                  Rotation
-                </Typography>
-              <Button onClick={() => this.setState({rotation: rotation + 10})}>+10</Button>
-              <Button onClick={() => this.setState({rotation: rotation - 10})}>-10</Button>
-              </div>
-              <div>
-                <Typography>
-                  Zoom
-                </Typography>
-                <Button onClick={() => this.setState({scale: scale + 0.3})}>+</Button>
-                <Button onClick={() => this.setState({scale: scale - 0.3})}>-</Button>
-              </div>
-              <div>
-                <Button onClick={() => this.setState(state => ({animate: !animate}))}>Animate</Button>
-              </div>
+      <StyledEngineProvider injectFirst>
+        <ThemeProvider theme={theme}>
+          {!auth && (
+            <Login onSubmit={this.login} />
+          )}
+          {loading && <CircularProgress />}
+          {auth && treeData && (
+            <Grid container>
+              <Grid item xs={3} style={{backgroundColor: "#eaeaea"}}>
+                <Typography variant="h3" gutterBottom>Facetree</Typography>
+                <div>
+                  <Typography>
+                    Utseende
+                  </Typography>
+                  <Button onClick={() => this.setState({treeMode: 'Edged'})}>Edged</Button>
+                  <Button onClick={() => this.setState({treeMode: 'Smooth'})}>Smooth</Button>
+                </div>
+                <div>
+                  <Typography>
+                    Rotation
+                  </Typography>
+                <Button onClick={() => this.setState({rotation: rotation + 10})}>+10</Button>
+                <Button onClick={() => this.setState({rotation: rotation - 10})}>-10</Button>
+                </div>
+                <div>
+                  <Typography>
+                    Zoom
+                  </Typography>
+                  <Button onClick={() => this.setState({scale: scale + 0.3})}>+</Button>
+                  <Button onClick={() => this.setState({scale: scale - 0.3})}>-</Button>
+                </div>
+                <div>
+                  <Button onClick={() => this.setState(state => ({animate: !animate}))}>Animate</Button>
+                </div>
+              </Grid>
+              <Grid item xs={9}>
+                <Chart data={treeData} mode={treeMode} animate={animate} rotation={rotation} scale={scale} x={x} y={y} onZoom={({k, x, y}) => this.setState({scale: k, x, y})}/>
+              </Grid>
             </Grid>
-            <Grid item xs={9}>
-              <Chart data={treeData} mode={treeMode} animate={animate} rotation={rotation} scale={scale} x={x} y={y} onZoom={({k, x, y}) => this.setState({scale: k, x, y})}/>
-            </Grid>
-          </Grid>
-        )}
-      </div>
+          )}
+        </ThemeProvider>
+      </StyledEngineProvider>
     );
   }
 }
