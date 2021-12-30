@@ -69,7 +69,7 @@ class Facetree {
     }
 
     database_download = () => {
-        axios.get(this.facetree_backend + "/v1/records", {"headers": this.auth_headers})
+        return axios.get(this.facetree_backend + "/v1/records", {"headers": this.auth_headers})
         .then(response => {
             this.database_add_records(response.data);
         })

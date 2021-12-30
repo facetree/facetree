@@ -4,6 +4,7 @@ import facetree from './facetree'
 import Individual from './Individual'
 import { Link, makeRadialLink, makeLinkPath } from './Link'
 import { pol2cart, coordAsTransform } from './utils'
+import { LinearProgress } from '@mui/material';
 
 const distanceGen = 140;
 const genCount = 7
@@ -13,10 +14,6 @@ const animationSpeed = 150
 const startYear = 1810
 const endYear = new Date().getFullYear()
 
-function autoBox(node) {
-  const { x, y, width, height } = node.getBBox();
-  return [x, y, width, height];
-}
 const tree = data => d3.tree()
   .size([2 * Math.PI, 800]) // polar coordinate system
   //.size([width, height])
@@ -72,9 +69,9 @@ export default class Chart extends Component {
   setTransform() {
     const tree = d3.select(this.treeRef.current)
     this.treeRef.current.getBBox
-    const { scale, x, y, rotation } = this.props
+    const { scale, x, y, rotation } = this.props.options
     // TODO figure out how to rotate relative to transformed origin
-    const transform =  `rotate(${rotation}) translate(${x}, ${y}) scale(${scale})`
+    const transform = `rotate(${rotation}) translate(${x}, ${y}) scale(${scale})`
     console.log("setTransform", transform)
     tree.attr("transform", transform)
   }
@@ -87,8 +84,9 @@ export default class Chart extends Component {
   }
 
   componentDidUpdate(prevProps) {
-    const { mode, animate, rotation, scale } = this.props
+    const { mode, animate, rotation, scale } = this.props.options
     if (prevProps.mode !== mode) {
+      console.log("Transition link styles")
       const link = d3.selectAll('.link')
         .transition()
         .duration(1500)
@@ -107,7 +105,7 @@ export default class Chart extends Component {
   }
 
   shouldComponentUpdate(prevProps, prevState) {
-    const { rotation, scale, x, y } = this.props
+    const { rotation, scale, x, y } = this.props.options
     const rotationChange = prevProps.rotation !== rotation
     const scaleChange = prevProps.scale !== scale
     const xChange = prevProps.x !== x
@@ -169,22 +167,25 @@ export default class Chart extends Component {
 
     const treeNodes = root ? root.descendants().reverse() : []
 
-    d3.select(this.yearTextRef.current)
+    const yearText = d3.select(this.yearTextRef.current)
+    yearText
       .transition()
       .duration(animationSpeed)
       .on("start", function repeat() {
+        console.log("run repeat")
         d3.active(this)
             .tween("text", function() {
-              const that = d3.select(this)
-              const nextYear = parseInt(that.text())+1
+              const nextYear = parseInt(yearText.text())+1
               console.log(nextYear, endYear)
               if (nextYear > endYear) {
-                that.interrupt()
+                console.log("Interrupt animation")
+                yearText.interrupt()
               }
-              //const interpolate = d3.interpolateNumber(that.text().replace(/,/g, ""), parseInt(that.text())+1)
-              return function(t) { that.text(nextYear); };
+              // const interpolate = d3.interpolateNumber(that.text().replace(/,/g, ""), parseInt(that.text())+1)
+              return function(t) { yearText.text(nextYear); };
             })
           .transition()
+          .duration(animationSpeed)
           .on("start", repeat);
       });
 
@@ -235,21 +236,13 @@ export default class Chart extends Component {
       d3.zoom()
       .scaleExtent([1, 8])
       .on("zoom", () => {
-        const transform = `rotate(${this.props.rotation}) ${d3.event.transform}`
-        console.log(transform, d3.event)
-        console.log(d3.event.transform.k, d3.event.transform.x, d3.event.transform.y)
-        const {k, x, y} = d3.event.transform
         const { onZoom } = this.props
-        // const newTransform = `rotate(${this.props.rotation}) ${d3.event.transform}`
-        // treeContainer.attr("transform", newTransform)
         if (onZoom) {
           onZoom(d3.event.transform)
         }
       })
     svg
       .call(zoom)
-      console.log(d3.zoomIdentity.translate(100, 50).scale(1.5))
-      // .call(zoom.transform, d3.zoomIdentity.translate(100, 50).scale(1.5))
 
     const yearText = d3.select(this.yearTextRef.current)
     yearText
@@ -293,11 +286,14 @@ export default class Chart extends Component {
   render() {
     console.log("Render")
     //const { treeRoot, links } = this.state
-    const { data, mode } = this.props
+    const { data, options } = this.props
     const { tooltipDynamicStyle, tooltipText, tooltipImg } = this.state
     const treeRoot = tree(data.root)
     const treeNodes = treeRoot ? treeRoot.descendants().reverse() : []
     const links = treeRoot ? treeRoot.links() : []
+    if (!data) {
+      return <LinearProgress/>
+    }
     return (
       <div ref={this.chartRef}>
         <div id="tooltip" style={{
@@ -318,7 +314,7 @@ export default class Chart extends Component {
           <g ref={this.treeRef}>
             <text style={{fontSize: '8em'}} ref={this.yearTextRef}>{startYear}</text>
             <g ref={this.linksRef}>
-              {links.map((link, i) => <Link key={i} mode={mode} data={link} />)}
+              {links.map((link, i) => <Link key={i} mode={options.mode} data={link} />)}
             </g>
             <g ref={this.nodesRef}>
               {treeNodes.map(node => <Individual data={node} onHover={this.openTooltip} onLeave={this.closeTooltip} onClick={this.openModal} />)}

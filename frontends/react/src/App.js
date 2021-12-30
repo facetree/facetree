@@ -5,10 +5,10 @@ import facetree from './facetree'
 import './App.css';
 import Chart from './Chart'
 import Login from './Login'
-import { Button, CircularProgress, Grid, Typography } from '@mui/material'
 import { ThemeProvider, StyledEngineProvider, createTheme } from '@mui/material/styles';
+import Controls from './Controls';
+import { Grid } from '@mui/material';
 
-import makeStyles from '@mui/styles/makeStyles';
 
 const theme = createTheme();
 
@@ -49,16 +49,27 @@ class App extends Component {
   constructor(props) {
     super(props)
     this.state = {
-      //loading: true,
-      treeMode: 'Edged',
-      animate: false,
-      rotation: 0,
-      scale: 1.5,
-      x: 0,
-      y: 0,
-      auth: null,
+      loading: false,
+      auth: localStorage.getItem("token"),
+      options: {
+        treeMode: 'Edged',
+        animate: false,
+        rotation: 0,
+        scale: 1.5,
+        x: 0,
+        y: 0,
+      }
     }
   }
+  componentDidMount() {
+    if (this.state.auth) {
+      this.fetchData(this.state.auth).catch((error) => {
+        console.error(error)
+        this.setState({auth: null})
+      })
+    }
+  }
+
   login = (username, password) => {
     console.log('Try to log in')
     axios.post(facetree_backend + "/v1/users/login/password", {
@@ -69,18 +80,27 @@ class App extends Component {
         auth: response.data.token,
         loading: true,
       })
+      localStorage.setItem("token", response.data.token)
+      this.fetchData(response.data.token)
       console.log('logged in')
-      facetree.database_updater(response.data.token, updated_records => {
-        const treeData = parseTree(facetree.database)
-        this.setState({
-          treeData,
-          loading: false,
-        })
-      });
     }).catch((error) => {
       console.error(error);
     });
   }
+
+  fetchData(token) {
+    console.log("Fetching data")
+    const setData = () => {
+      const treeData = parseTree(facetree.database)
+      this.setState({
+        treeData,
+        loading: false,
+      })
+    }
+    facetree.database_updater(token, setData)
+    return facetree.database_download().then(setData)
+  }
+
   parentin = id => {
     var families = [];
     if (!facetree.database.parentin[id]) {
@@ -125,45 +145,21 @@ class App extends Component {
     }
   }
   render() {
-    const { treeData, treeMode, animate, loading, auth, rotation, scale, x, y } = this.state
+    const { treeData, options, auth, loading } = this.state
     return (
       <StyledEngineProvider injectFirst>
         <ThemeProvider theme={theme}>
           {!auth && (
             <Login onSubmit={this.login} />
           )}
-          {loading && <CircularProgress />}
-          {auth && treeData && (
+          {auth && (
             <Grid container>
               <Grid item xs={3} style={{backgroundColor: "#eaeaea"}}>
-                <Typography variant="h3" gutterBottom>Facetree</Typography>
-                <div>
-                  <Typography>
-                    Utseende
-                  </Typography>
-                  <Button onClick={() => this.setState({treeMode: 'Edged'})}>Edged</Button>
-                  <Button onClick={() => this.setState({treeMode: 'Smooth'})}>Smooth</Button>
-                </div>
-                <div>
-                  <Typography>
-                    Rotation
-                  </Typography>
-                <Button onClick={() => this.setState({rotation: rotation + 10})}>+10</Button>
-                <Button onClick={() => this.setState({rotation: rotation - 10})}>-10</Button>
-                </div>
-                <div>
-                  <Typography>
-                    Zoom
-                  </Typography>
-                  <Button onClick={() => this.setState({scale: scale + 0.3})}>+</Button>
-                  <Button onClick={() => this.setState({scale: scale - 0.3})}>-</Button>
-                </div>
-                <div>
-                  <Button onClick={() => this.setState(state => ({animate: !animate}))}>Animate</Button>
-                </div>
+                <Controls onChange={newOptions => this.setState({options: {...options, ...newOptions}})} options={options} />
               </Grid>
               <Grid item xs={9}>
-                <Chart data={treeData} mode={treeMode} animate={animate} rotation={rotation} scale={scale} x={x} y={y} onZoom={({k, x, y}) => this.setState({scale: k, x, y})}/>
+                {loading && <LinearProgress />}
+                {treeData && <Chart data={treeData} options={options} onZoom={({k, x, y}) => this.setState({options: {...options, scale: k, x, y}})}/> }
               </Grid>
             </Grid>
           )}
