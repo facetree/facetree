@@ -11,7 +11,7 @@ const width = (2 * genCount + 10) * distanceGen;
 const height = width
 const animationSpeed = 150
 const startYear = 1810
-const endYear = 2019
+const endYear = new Date().getFullYear()
 
 function autoBox(node) {
   const { x, y, width, height } = node.getBBox();
@@ -69,6 +69,16 @@ export default class Chart extends Component {
     tooltipText: '',
   }
 
+  setTransform() {
+    const tree = d3.select(this.treeRef.current)
+    this.treeRef.current.getBBox
+    const { scale, x, y, rotation } = this.props
+    // TODO figure out how to rotate relative to transformed origin
+    const transform =  `rotate(${rotation}) translate(${x}, ${y}) scale(${scale})`
+    console.log("setTransform", transform)
+    tree.attr("transform", transform)
+  }
+
   componentDidMount() {
     this.updateD3(this.props)
     // initial tree animation
@@ -77,16 +87,12 @@ export default class Chart extends Component {
   }
 
   componentDidUpdate(prevProps) {
-    const { mode, animate } = this.props
+    const { mode, animate, rotation, scale } = this.props
     if (prevProps.mode !== mode) {
       const link = d3.selectAll('.link')
         .transition()
         .duration(1500)
         .attr("d", d => mode === 'Edged' ? makeLinkPath(d) : makeRadialLink(d))
-    }
-    if (prevProps.data !== this.props.data) {
-      console.log('data changed')
-      this.updateD3(prevProps)
     }
     if (prevProps.animate !== animate) {
       if (animate) {
@@ -98,6 +104,20 @@ export default class Chart extends Component {
         d3.select(this.yearTextRef.current).interrupt()
       }
     }
+  }
+
+  shouldComponentUpdate(prevProps, prevState) {
+    const { rotation, scale, x, y } = this.props
+    const rotationChange = prevProps.rotation !== rotation
+    const scaleChange = prevProps.scale !== scale
+    const xChange = prevProps.x !== x
+    const yChange = prevProps.y !== y
+    if (rotationChange || scaleChange || xChange || yChange) {
+      this.setTransform()
+      console.log("Dont rerender, but let d3 update transform")
+      return false
+    }
+    return true
   }
 
   initialTransitions() {
@@ -157,7 +177,10 @@ export default class Chart extends Component {
             .tween("text", function() {
               const that = d3.select(this)
               const nextYear = parseInt(that.text())+1
-              if (nextYear > endYear) that.interrupt()
+              console.log(nextYear, endYear)
+              if (nextYear > endYear) {
+                that.interrupt()
+              }
               //const interpolate = d3.interpolateNumber(that.text().replace(/,/g, ""), parseInt(that.text())+1)
               return function(t) { that.text(nextYear); };
             })
@@ -206,14 +229,27 @@ export default class Chart extends Component {
 
     const svg = d3.select(this.svgRef.current)
     const treeContainer = d3.select(this.treeRef.current)
+    treeContainer.attr("transform", `rotate(${this.props.rotation})`)
 
     const zoom =
       d3.zoom()
       .scaleExtent([1, 8])
-      .on("zoom", () => treeContainer.attr("transform", d3.event.transform))
+      .on("zoom", () => {
+        const transform = `rotate(${this.props.rotation}) ${d3.event.transform}`
+        console.log(transform, d3.event)
+        console.log(d3.event.transform.k, d3.event.transform.x, d3.event.transform.y)
+        const {k, x, y} = d3.event.transform
+        const { onZoom } = this.props
+        // const newTransform = `rotate(${this.props.rotation}) ${d3.event.transform}`
+        // treeContainer.attr("transform", newTransform)
+        if (onZoom) {
+          onZoom(d3.event.transform)
+        }
+      })
     svg
       .call(zoom)
-      .call(zoom.transform, d3.zoomIdentity.translate(100, 50).scale(1.5))
+      console.log(d3.zoomIdentity.translate(100, 50).scale(1.5))
+      // .call(zoom.transform, d3.zoomIdentity.translate(100, 50).scale(1.5))
 
     const yearText = d3.select(this.yearTextRef.current)
     yearText
@@ -255,6 +291,7 @@ export default class Chart extends Component {
   }
 
   render() {
+    console.log("Render")
     //const { treeRoot, links } = this.state
     const { data, mode } = this.props
     const { tooltipDynamicStyle, tooltipText, tooltipImg } = this.state
